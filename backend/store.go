@@ -217,6 +217,23 @@ func (s *service) pages(ctx context.Context, d *Document, offset, limit int) ([]
 				return nil, err
 			}
 		}
+		if v != nil && d.Parser != "gemini" && p.Extraction == "completed" && p.TextFormat == "" {
+			// Refresh old Poppler output from the retained PDF without starting a summary generation.
+			updated, err := (work{s: s, ctx: ctx}).extract("poppler", filepath.Join(s.root, d.ID, "source.pdf"), p.Number)
+			if err == nil && (updated.Markdown != nil && *updated.Markdown != "" || p.Blank != nil && *p.Blank) {
+				updated.Summary = p.Summary
+				raw, err := json.Marshal(updated)
+				if err != nil {
+					return nil, err
+				}
+				// A concurrent cleanup or worker checkpoint must take precedence.
+				const replacePage = `if redis.call('EXISTS',KEYS[1])==1 and redis.call('HGET',KEYS[2],ARGV[1])==ARGV[2] then return redis.call('HSET',KEYS[2],ARGV[1],ARGV[3]) end return 0`
+				if err = s.db.Eval(ctx, replacePage, []string{docKey(d.ID), pageKey(d.ID)}, keys[i], v, raw).Err(); err != nil {
+					return nil, err
+				}
+				p = updated
+			}
+		}
 		if notes[i] != nil {
 			if notes[i] == "" {
 				p.Summary = "failed"

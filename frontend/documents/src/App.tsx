@@ -1,3 +1,4 @@
+import { ExtractedPage } from "./ExtractedPage";
 import { DocumentDrawer } from "./DocumentDrawer";
 import { lazy, Suspense } from "react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -934,9 +935,7 @@ export default function App() {
                             document.parser === "gemini" ? (
                               <Markdown text={page.markdown} />
                             ) : (
-                              <pre className="extracted-text" dir="auto">
-                                {page.markdown}
-                              </pre>
+                              <ExtractedPage page={page} />
                             )
                           ) : (
                             <p className="muted">

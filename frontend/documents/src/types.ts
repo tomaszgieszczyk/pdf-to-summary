@@ -48,6 +48,8 @@ export type Document = {
   };
 };
 export type Page = {
+  text_format?: string;
+  margin_notes?: string;
   page: number;
   markdown: string | null;
   blank: boolean | null;

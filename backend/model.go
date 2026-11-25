@@ -68,12 +68,24 @@ type Document struct {
 	Metadata          map[string]string `json:"metadata"`
 }
 type Page struct {
-	Warning    string  `json:"warning,omitempty"`
-	Number     int     `json:"page"`
-	Markdown   *string `json:"markdown"`
-	Blank      *bool   `json:"blank"`
-	Extraction string  `json:"extraction_state"`
-	Summary    string  `json:"summary_state"`
+	TextFormat  string  `json:"text_format,omitempty"`
+	MarginNotes string  `json:"margin_notes,omitempty"`
+	Warning     string  `json:"warning,omitempty"`
+	Number      int     `json:"page"`
+	Markdown    *string `json:"markdown"`
+	Blank       *bool   `json:"blank"`
+	Extraction  string  `json:"extraction_state"`
+	Summary     string  `json:"summary_state"`
+}
+
+func (p Page) sourceText() string {
+	if p.Markdown == nil {
+		return ""
+	}
+	if p.MarginNotes == "" {
+		return *p.Markdown
+	}
+	return *p.Markdown + "\n\n" + p.MarginNotes
 }
 
 func (d *Document) terminal() bool {

@@ -1112,14 +1112,67 @@ progress::-webkit-progress-value {
 }
 
 .extracted-text {
+  display: grid;
+  gap: 0.8rem;
+  min-width: 0;
+  margin: 1.1rem 0;
+  color: #293e33;
+  font-size: 1rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.extracted-text p,
+.source-fields,
+.source-fields dd {
+  margin: 0;
+}
+.source-line {
+  display: block;
+}
+.source-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 2rem;
+  border-block: 1px solid #dde6dd;
+  padding: 0.65rem 0;
+}
+.source-fields dt {
+  font-size: 0.85em;
+  color: #526557;
+}
+.source-fields dd {
+  font-weight: 600;
+}
+.source-table {
+  min-width: 0;
   max-width: 100%;
   overflow: auto;
-  white-space: pre;
-  font:
-    0.91rem/1.65 ui-monospace,
-    monospace;
-  padding: 0.8rem 0;
-  color: #293e33;
+}
+.source-table table {
+  border-collapse: collapse;
+  width: 100%;
+  font: inherit;
+  text-align: start;
+}
+.source-table td {
+  padding: 0.3rem 0.65rem;
+  border: 1px solid #dfe7df;
+  vertical-align: top;
+}
+.source-table tr:nth-child(odd) {
+  background: #f6f8f5;
+}
+.source-notes {
+  border-top: 1px solid #e0e7e0;
+  padding-top: 0.7rem;
+  color: #4e6456;
+}
+.source-notes summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.source-notes p {
+  margin-top: 0.6rem;
 }
 .pdf-controls {
   display: flex;
