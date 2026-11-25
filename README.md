@@ -4,13 +4,21 @@ Upload PDFs, read the extracted text page by page and generate editable Markdown
 
 ## Run locally with Docker Compose
 
-Install Docker with the Compose plugin. From the repository root, create your local settings file.
+Install Docker with the Compose plugin. If you do not already have a `.env` file, create one in the repository root.
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-On macOS or Linux, use `cp .env.example .env`. Set `GEMINI_API_KEY` in `.env`. This key stays on the backend. Both parsing modes use Gemini to write summaries.
+On macOS or Linux, use `cp .env.example .env`.
+
+### Get a Gemini API key
+
+1. Sign in to [Google AI Studio’s API Keys page](https://aistudio.google.com/apikey) with your Google account.
+2. Copy an existing Gemini key or choose **Create API key** and select your Google Cloud project. If your project is missing, open **Dashboard → Projects → Import projects**, import it, then return to **API Keys**.
+3. Open your local `.env` file and paste the key after `GEMINI_API_KEY=`. Save the file. Git ignores it, and Docker Compose passes the key to the API and worker. Both parsing modes use Gemini to write summaries.
+
+### Start the workspace
 
 ```sh
 docker compose up -d --build
