@@ -223,6 +223,14 @@ export default function App() {
     setError("");
     try {
       for (const [index, file] of queue.entries()) {
+        // A cloud placeholder can expose a filename and size before its bytes are available.
+        try {
+          await file.slice(0, 1).arrayBuffer();
+        } catch {
+          throw new Error(
+            `Cannot read "${file.name}" on this device. For a OneDrive file, choose “Always keep on this device”, wait for the download, then select it again.`,
+          );
+        }
         setUpload({
           name: file.name,
           percent: 0,
