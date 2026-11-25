@@ -1,0 +1,750 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PDF to Summary",
+    "description": "Stream PDFs, analyze small page batches, and retrieve resumable document summaries.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "summary": "Ready",
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/live": {
+      "get": {
+        "summary": "Live",
+        "operationId": "live_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents": {
+      "post": {
+        "summary": "Upload",
+        "description": "Send a raw application/pdf body. Upload multiple files as independent requests.",
+        "operationId": "upload_documents_post",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240,
+              "title": "Filename"
+            }
+          },
+          {
+            "name": "summary_language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "auto",
+                "af",
+                "sq",
+                "am",
+                "ar",
+                "hy",
+                "as",
+                "az",
+                "eu",
+                "be",
+                "bn",
+                "bs",
+                "bg",
+                "ca",
+                "ceb",
+                "zh",
+                "zh-Hans",
+                "zh-Hant",
+                "co",
+                "hr",
+                "cs",
+                "da",
+                "dv",
+                "nl",
+                "en",
+                "eo",
+                "et",
+                "fil",
+                "fi",
+                "fr",
+                "fy",
+                "gl",
+                "ka",
+                "de",
+                "el",
+                "gu",
+                "ht",
+                "ha",
+                "haw",
+                "iw",
+                "hi",
+                "hmn",
+                "hu",
+                "is",
+                "ig",
+                "id",
+                "ga",
+                "it",
+                "ja",
+                "jv",
+                "kn",
+                "kk",
+                "km",
+                "ko",
+                "kri",
+                "ku",
+                "ky",
+                "lo",
+                "la",
+                "lv",
+                "lt",
+                "lb",
+                "mk",
+                "mg",
+                "ms",
+                "ml",
+                "mt",
+                "mi",
+                "mr",
+                "mni-Mtei",
+                "mn",
+                "my",
+                "ne",
+                "no",
+                "ny",
+                "or",
+                "ps",
+                "fa",
+                "pl",
+                "pt",
+                "pa",
+                "ro",
+                "ru",
+                "sm",
+                "gd",
+                "sr",
+                "st",
+                "sn",
+                "sd",
+                "si",
+                "sk",
+                "sl",
+                "so",
+                "es",
+                "su",
+                "sw",
+                "sv",
+                "tg",
+                "ta",
+                "te",
+                "th",
+                "tr",
+                "uk",
+                "ur",
+                "ug",
+                "uz",
+                "vi",
+                "cy",
+                "xh",
+                "yi",
+                "yo",
+                "zu"
+              ],
+              "default": "en",
+              "title": "Summary Language"
+            }
+          },
+          {
+            "name": "parser",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pypdf",
+                "gemini",
+                "poppler"
+              ],
+              "type": "string",
+              "default": "gemini",
+              "title": "Parser"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/pdf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List Documents",
+        "operationId": "list_documents_documents_get",
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}": {
+      "get": {
+        "summary": "Document Status",
+        "operationId": "document_status_documents__document_id__get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "summary_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Summary Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/summary": {
+      "patch": {
+        "summary": "Edit Summary",
+        "operationId": "edit_summary_documents__document_id__summary_patch",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummaryEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/summary/regenerate": {
+      "post": {
+        "summary": "Regenerate Summary",
+        "operationId": "regenerate_summary_documents__document_id__summary_regenerate_post",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummaryRegeneration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/pages": {
+      "get": {
+        "summary": "Document Pages",
+        "operationId": "document_pages_documents__document_id__pages_get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "SummaryEdit": {
+        "properties": {
+          "markdown": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Markdown"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(legacy|g[0-9]+)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "markdown",
+          "revision"
+        ],
+        "title": "SummaryEdit"
+      },
+      "SummaryRegeneration": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "af",
+              "sq",
+              "am",
+              "ar",
+              "hy",
+              "as",
+              "az",
+              "eu",
+              "be",
+              "bn",
+              "bs",
+              "bg",
+              "ca",
+              "ceb",
+              "zh",
+              "zh-Hans",
+              "zh-Hant",
+              "co",
+              "hr",
+              "cs",
+              "da",
+              "dv",
+              "nl",
+              "en",
+              "eo",
+              "et",
+              "fil",
+              "fi",
+              "fr",
+              "fy",
+              "gl",
+              "ka",
+              "de",
+              "el",
+              "gu",
+              "ht",
+              "ha",
+              "haw",
+              "iw",
+              "hi",
+              "hmn",
+              "hu",
+              "is",
+              "ig",
+              "id",
+              "ga",
+              "it",
+              "ja",
+              "jv",
+              "kn",
+              "kk",
+              "km",
+              "ko",
+              "kri",
+              "ku",
+              "ky",
+              "lo",
+              "la",
+              "lv",
+              "lt",
+              "lb",
+              "mk",
+              "mg",
+              "ms",
+              "ml",
+              "mt",
+              "mi",
+              "mr",
+              "mni-Mtei",
+              "mn",
+              "my",
+              "ne",
+              "no",
+              "ny",
+              "or",
+              "ps",
+              "fa",
+              "pl",
+              "pt",
+              "pa",
+              "ro",
+              "ru",
+              "sm",
+              "gd",
+              "sr",
+              "st",
+              "sn",
+              "sd",
+              "si",
+              "sk",
+              "sl",
+              "so",
+              "es",
+              "su",
+              "sw",
+              "sv",
+              "tg",
+              "ta",
+              "te",
+              "th",
+              "tr",
+              "uk",
+              "ur",
+              "ug",
+              "uz",
+              "vi",
+              "cy",
+              "xh",
+              "yi",
+              "yo",
+              "zu"
+            ],
+            "title": "Language"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "revision"
+        ],
+        "title": "SummaryRegeneration"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "."
+    }
+  ]
+}

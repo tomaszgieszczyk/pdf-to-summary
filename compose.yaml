@@ -1,0 +1,46 @@
+x-backend: &backend
+  build: ./backend
+  environment:
+    REDIS_URL: redis://redis:6379/0
+    GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-lite}
+    GEMINI_REQUESTS_PER_MINUTE: ${GEMINI_REQUESTS_PER_MINUTE:-5}
+    MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-1073741824}
+    MAX_ACTIVE_DOCUMENTS: ${MAX_ACTIVE_DOCUMENTS:-20}
+    MIN_FREE_DISK_BYTES: ${MIN_FREE_DISK_BYTES:-268435456}
+    RETENTION_SECONDS: ${RETENTION_SECONDS:-86400}
+  volumes:
+    - documents:/data
+  depends_on:
+    redis:
+      condition: service_healthy
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:6389:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+  api:
+    <<: *backend
+    command: ["api"]
+    ports:
+      - "127.0.0.1:8000:8000"
+  worker:
+    <<: *backend
+    command: ["worker"]
+  frontend:
+    build: ./frontend
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:8080:80"
+volumes:
+  documents:
+  redis-data:

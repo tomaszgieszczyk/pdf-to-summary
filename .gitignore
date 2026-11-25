@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+/data/
+/backend/data/
+/frontend/node_modules/
+/frontend/dist/
+*.tsbuildinfo
+*.exe
+/backend/backend
+.idea/
+.DS_Store
