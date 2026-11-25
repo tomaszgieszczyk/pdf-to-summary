@@ -79,6 +79,8 @@ On Windows use `curl.exe`. The response contains a document ID and a status URL.
 
 ## Processing and persistence
 
+Each workspace tab connects to `/api/events` over WebSocket. Redis publishes document creation, progress, edits and expiry in the same transaction as the corresponding state change. Messages carry the event type and document ID. The UI fetches current data on entry, on relevant changes and after reconnecting. A quiet workspace makes no periodic document requests.
+
 The API streams the input to disk, then registers the document and its Redis Streams job in one transaction. Workers acquire a renewable document lease. Redis stores extracted pages, per-generation summaries and reduction checkpoints. A replacement worker can resume from the last published checkpoint. Provider calls interrupted before a checkpoint is saved may be repeated. Multiple workers can process different documents concurrently.
 
 Regeneration reads saved pages. Earlier summary versions and edits remain available. Revisions protect edits from concurrent overwrites. A partial result lists missing pages and warnings. Generated and manually edited text are stored separately. This repository uses its own Redis keys and Compose volumes.

@@ -8,32 +8,42 @@ import {
 import "./style.css";
 import { mountNavigation } from "../../shared/modules";
 
+import { observe } from "../../shared/events";
+
 function Reports() {
   const language = useSyncExternalStore(subscribeLanguage, readLanguage);
   const [languages, setLanguages] = useState<Record<string, string>>({});
   const [total, setTotal] = useState<number | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    const controller = new AbortController();
-    async function load() {
-      const options = { signal: controller.signal };
-      const [list, health] = await Promise.all([
-        fetch("/api/documents?limit=1", options),
-        fetch("/api/health", options),
-      ]);
-      if (!list.ok || !health.ok)
-        throw new Error("Could not load the workspace report.");
-      const [documents, settings] = await Promise.all([
-        list.json(),
-        health.json(),
-      ]);
-      setTotal(documents.total);
-      setLanguages(settings.summary_languages);
-    }
-    load().catch((err) => {
-      if (!controller.signal.aborted) setError(err.message);
-    });
-    return () => controller.abort();
+    const onFailure = (err: unknown) => setError((err as Error).message);
+    const stopCount = observe(
+      async (signal) => {
+        const res = await fetch("/api/documents?limit=1", { signal });
+        if (!res.ok) throw new Error("Could not load the workspace report.");
+        return (await res.json()).total as number;
+      },
+      (value) => {
+        setTotal(value);
+        setError("");
+      },
+      onFailure,
+      (event) => event.type !== "updated",
+    );
+    const stopLanguages = observe(
+      async (signal) => {
+        const res = await fetch("/api/health", { signal });
+        if (!res.ok) throw new Error("Could not load summary languages.");
+        return (await res.json()).summary_languages as Record<string, string>;
+      },
+      setLanguages,
+      onFailure,
+      (event) => event.type === "sync",
+    );
+    return () => {
+      stopCount();
+      stopLanguages();
+    };
   }, []);
   return (
     <>

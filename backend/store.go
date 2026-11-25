@@ -114,6 +114,7 @@ func (s *service) update(ctx context.Context, id, owner string, change mutation,
 					return err
 				}
 				p.Set(ctx, docKey(id), raw, 0)
+				publishChange(ctx, p, "updated", id)
 				return nil
 			})
 			return err
@@ -175,6 +176,7 @@ func (s *service) register(ctx context.Context, d *Document, key string) (string
 			}
 			_, err = tx.TxPipelined(ctx, func(p redis.Pipeliner) error {
 				p.Set(ctx, docKey(d.ID), raw, 0)
+				publishChange(ctx, p, "created", d.ID)
 				p.SAdd(ctx, activeKey, d.ID)
 				p.ZAdd(ctx, indexKey, redis.Z{Score: d.Created, Member: d.ID})
 				p.XAdd(ctx, &redis.XAddArgs{Stream: queue, Values: fields{"id": d.ID}})
@@ -247,6 +249,7 @@ func (s *service) cleanup(ctx context.Context) error {
 				}
 				p.ZRem(ctx, indexKey, id)
 				p.ZRem(ctx, expiryKey, id)
+				publishChange(ctx, p, "deleted", id)
 				return nil
 			})
 			if err == nil {

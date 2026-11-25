@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { poll, latestDocument } from "./polling";
+import { latestDocument } from "./latestDocument";
+import { observe, MissingDocument } from "../../shared/events";
 import { api } from "./api";
 import type { DocItem, Document, Page, Health } from "./types";
 
@@ -20,18 +21,18 @@ export function useDocumentData(refresh: number) {
   const selectedVersion = selected ? selectedVersions[selected] || "" : "";
   useEffect(
     () =>
-      poll(
+      observe(
         (signal) => api<Health>("/health", signal),
         setHealth,
         (error) => setError((error as Error).message),
-        60000,
+        (event) => event.type === "sync",
       ),
     [],
   );
 
   useEffect(
     () =>
-      poll(
+      observe(
         (signal) =>
           api<{ items: DocItem[]; total: number }>(
             `/documents?offset=${listOffset}&limit=20`,
@@ -43,7 +44,7 @@ export function useDocumentData(refresh: number) {
           setSelected((current) => current || list.items[0]?.id || null);
         },
         (error) => setError((error as Error).message),
-        2500,
+        () => true,
       ),
     [refresh, listOffset],
   );
@@ -56,22 +57,27 @@ export function useDocumentData(refresh: number) {
         : null,
     );
     if (!selected) return;
-    return poll(
+    return observe(
       (signal) =>
         api<Document>(
           `/documents/${selected}${selectedVersion ? `?summary_version=${encodeURIComponent(selectedVersion)}` : ""}`,
           signal,
         ),
       (doc) => setDocument((current) => latestDocument(current, doc)),
-      (error) => setError((error as Error).message),
-      2000,
+      (error) => {
+        if (error instanceof MissingDocument) {
+          setSelected(null);
+          setDocument(null);
+        } else setError((error as Error).message);
+      },
+      (event) => event.type === "sync" || event.id === selected,
     );
   }, [selected, selectedVersion, refresh]);
 
   useEffect(() => {
     setPages([]);
     if (!selected || tab !== "pages") return;
-    return poll(
+    return observe(
       (signal) =>
         api<{ items: Page[] }>(
           `/documents/${selected}/pages?offset=${pageOffset}&limit=5`,
@@ -79,7 +85,7 @@ export function useDocumentData(refresh: number) {
         ),
       (content) => setPages(content.items),
       (error) => setError((error as Error).message),
-      2500,
+      (event) => event.type === "sync" || event.id === selected,
     );
   }, [selected, tab, pageOffset, refresh]);
 

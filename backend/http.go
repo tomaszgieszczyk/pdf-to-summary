@@ -47,6 +47,7 @@ var idPattern = regexp.MustCompile("^[0-9a-f]{32}$")
 
 func (s *service) routes() http.Handler {
 	m := http.NewServeMux()
+	m.HandleFunc("GET /events", s.events)
 	m.HandleFunc("GET /health", route(200, func(_ http.ResponseWriter, r *http.Request) (any, error) {
 		return fields{"status": "ok", "model": s.model, "provider_configured": s.key != "", "max_upload_bytes": s.maxBytes, "summary_languages": languages}, nil
 	}))
