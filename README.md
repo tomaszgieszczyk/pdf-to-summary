@@ -1,6 +1,6 @@
 # PDF to Summary
 
-Upload PDFs, read the extracted text page by page and generate editable Markdown summaries in a chosen language. The Go API and worker live in `backend/`. The React and TypeScript application in `frontend/` uses Vite.
+Upload PDFs, read the extracted text page by page and generate editable Markdown summaries in a chosen language. The Go API and worker live in `backend/`. Documents and Reports are separate React and Vite applications with their own package manifests, lockfiles and production builds.
 
 ## Run locally with Docker Compose
 
@@ -47,15 +47,27 @@ cd backend
 go run .
 ```
 
-In a second terminal, run the frontend with hot reload.
+For frontend development under the shared origin, start the Compose development configuration. It runs Vite for both applications, mounts their source directories and forwards hot reload through the gateway.
 
 ```sh
-cd frontend
-npm ci
-npm run dev
+docker compose -f compose.yaml -f compose.dev.yaml up -d --build
 ```
 
-Open the Vite URL printed in the terminal. Its `/api` proxy forwards requests to port 8000. If the full Compose stack is running, stop its API, worker and frontend before switching to native development.
+Open [Documents](http://localhost:8080/documents/) or [Reports](http://localhost:8080/reports/). Switch back to production builds with `docker compose up -d --build`. Stop any native Go process on port 8000 before starting the Compose API.
+
+## Workspace modules
+
+| Browser path on localhost:8080 | Gateway destination |
+| --- | --- |
+| `/documents/` | Documents on port 5174 |
+| `/reports/` | Reports on port 5175 |
+| `/api/` | Go API on port 8000 |
+
+The root opens Documents. Use the **Modules** menu to switch applications. Reports shows the current library size and the default summary language. Changing the language in either application updates the other, including an already-open tab on the same origin. The preference is stored under `pdf-to-summary.preferences.summary-language`. PDFs, summaries and provider credentials stay on the backend. Opening the application ports directly creates separate browser storage.
+
+The shared registry in `frontend/shared/modules.ts` controls navigation. A module with a path is accessible from the menu. A null path displays **Unavailable in demo**. Access Control, AI Chat and Configuration are placeholders. This registry describes UI availability. Future protected operations also require authorization in the API.
+
+To add a working module, create its Vite application under `frontend/`, assign its URL base and service port, add the Compose service and gateway location, then set its path in the registry. The common Dockerfile accepts `APP` and `APP_PORT`. For an existing module, rebuild and deploy it independently, for example with `docker compose up -d --build --no-deps reports`. Rebuild both applications after editing shared navigation or preferences.
 
 ## API example
 
@@ -82,8 +94,10 @@ go vet ./...
 The lifecycle integration test uses real Poppler, an isolated Redis-compatible test server and a local Gemini HTTP stub. Install Poppler to include both extraction paths in this test. A Gemini key is unnecessary for the tests.
 
 ```sh
-cd frontend
+cd frontend/documents
 npm ci
 npm test
 npm run build
 ```
+
+Build Reports separately with `npm ci` and `npm run build` from `frontend/reports`.

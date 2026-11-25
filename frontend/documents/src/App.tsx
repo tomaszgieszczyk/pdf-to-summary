@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  readLanguage,
+  saveLanguage,
+  subscribeLanguage,
+} from "../../shared/preferences";
+import { mountNavigation } from "../../shared/modules";
 import {
   AlertCircle,
   ArrowDownToLine,
@@ -77,7 +83,7 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
 
   const [parser, setParser] = useState("poppler");
-  const [summaryLanguage, setSummaryLanguage] = useState("en");
+  const summaryLanguage = useSyncExternalStore(subscribeLanguage, readLanguage);
   const [drafts, setDrafts] = useState<Record<string, SummaryDraft>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [regeneration, setRegeneration] = useState<{
@@ -421,10 +427,7 @@ export default function App() {
       </aside>
       <div className="main-shell">
         <header className="topbar">
-          <span>
-            <FolderOpen size={16} /> Workspace <span className="slash">/</span>{" "}
-            <strong>Documents</strong>
-          </span>
+          <div ref={mountNavigation} />
           <a href="/api/docs" target="_blank" rel="noreferrer">
             API docs <ArrowUpRight size={14} />
           </a>
@@ -510,7 +513,7 @@ export default function App() {
                 value={summaryLanguage}
                 options={languageOptions}
                 disabled={!!upload}
-                onChange={setSummaryLanguage}
+                onChange={saveLanguage}
               />
               <p className="language-hint">
                 Applies to all selected files. Page content stays in its

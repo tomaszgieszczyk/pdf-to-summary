@@ -1,0 +1,8 @@
+server {
+    listen ${APP_PORT};
+    server_name _;
+    root /usr/share/nginx/html;
+    location /${APP}/assets/ { try_files $uri =404; }
+    location /${APP}/ { try_files $uri $uri/ /${APP}/index.html; }
+    location / { return 404; }
+}

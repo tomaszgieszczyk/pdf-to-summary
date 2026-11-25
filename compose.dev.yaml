@@ -1,0 +1,19 @@
+services:
+  documents:
+    image: pdf-to-summary-documents-dev
+    build:
+      target: dev
+    volumes:
+      - ./frontend/documents/src:/app/documents/src
+      - ./frontend/shared:/app/shared
+    environment:
+      VITE_USE_POLLING: "true"
+  reports:
+    image: pdf-to-summary-reports-dev
+    build:
+      target: dev
+    volumes:
+      - ./frontend/reports/src:/app/reports/src
+      - ./frontend/shared:/app/shared
+    environment:
+      VITE_USE_POLLING: "true"

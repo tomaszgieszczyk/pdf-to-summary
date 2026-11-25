@@ -1,0 +1,54 @@
+.workspace-modules {
+  position: relative;
+  width: max-content;
+  font:
+    500 0.9rem/1.4 system-ui,
+    sans-serif;
+}
+.workspace-modules summary {
+  cursor: pointer;
+  color: #24563f;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #d1dcd3;
+  border-radius: 0.45rem;
+  background: white;
+}
+.workspace-modules nav {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.4rem);
+  z-index: 30;
+  display: grid;
+  gap: 0.15rem;
+  min-width: min(17rem, 78vw);
+  padding: 0.45rem;
+  border: 1px solid #d1dcd3;
+  border-radius: 0.6rem;
+  background: white;
+  box-shadow: 0 5px 20px #18322721;
+}
+.workspace-modules nav a,
+.workspace-modules nav .module-unavailable {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.9rem;
+}
+.workspace-modules nav a {
+  color: #24563f;
+  text-decoration: none;
+}
+.workspace-modules nav a:hover,
+.workspace-modules nav a:focus-visible,
+.workspace-modules nav a[aria-current] {
+  background: #edf3ec;
+}
+.workspace-modules .module-unavailable {
+  color: #606c66;
+}
+.workspace-modules small {
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
