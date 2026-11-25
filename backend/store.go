@@ -20,23 +20,6 @@ const activeKey = prefix + "active"
 const queue = prefix + "jobs"
 const expiryKey = prefix + "expiry"
 
-// Filter expiration before pagination so totals and items describe the same instant.
-const listVisible = `
-local clock = redis.call('TIME')
-local now = tonumber(clock[1]) + tonumber(clock[2]) / 1000000
-local offset, limit = tonumber(ARGV[1]), tonumber(ARGV[2])
-local result = {0}
-for _, id in ipairs(redis.call('ZREVRANGE', KEYS[1], 0, -1)) do
-  local expiry = redis.call('ZSCORE', KEYS[2], id)
-  if not expiry or tonumber(expiry) > now then
-    if result[1] >= offset and #result <= limit then
-      table.insert(result, redis.call('GET', ARGV[3] .. id))
-    end
-    result[1] = result[1] + 1
-  end
-end
-return result`
-
 func docKey(id string) string     { return prefix + id }
 func pageKey(id string) string    { return docKey(id) + ":pages" }
 func notesKey(d *Document) string { return fmt.Sprintf("%s:notes:%d", docKey(d.ID), d.Generation) }
@@ -64,8 +47,19 @@ func readDoc(ctx context.Context, db redis.Cmdable, id string) (*Document, error
 		return nil, err
 	}
 	var d Document
-	err = json.Unmarshal(raw, &d)
-	return &d, err
+	if err := json.Unmarshal(raw, &d); err != nil {
+		return nil, err
+	}
+	// Older records stored the retention deadline only in the cleanup index.
+	if d.Finished != nil && d.ExpiresAt == nil {
+		deadline, err := db.ZScore(ctx, expiryKey, id).Result()
+		if err == nil {
+			d.ExpiresAt = &deadline
+		} else if !errors.Is(err, redis.Nil) {
+			return nil, err
+		}
+	}
+	return &d, nil
 }
 func (s *service) document(ctx context.Context, id string) (*Document, error) {
 	d, err := readDoc(ctx, s.db, id)
@@ -75,7 +69,13 @@ func (s *service) document(ctx context.Context, id string) (*Document, error) {
 	return d, err
 }
 func (s *service) expired(d *Document) bool {
-	return d.Finished != nil && now() >= *d.Finished+s.retention.Seconds()
+	if d.Finished == nil {
+		return false
+	}
+	if d.ExpiresAt != nil {
+		return now() >= *d.ExpiresAt
+	}
+	return now() >= *d.Finished+s.retention.Seconds()
 }
 
 type mutation func(*Document, redis.Pipeliner) error
@@ -114,7 +114,7 @@ func (s *service) update(ctx context.Context, id, owner string, change mutation,
 					return err
 				}
 				p.Set(ctx, docKey(id), raw, 0)
-				publishChange(ctx, p, "updated", id)
+				publishChange(ctx, p, "updated", id, d.State)
 				return nil
 			})
 			return err
@@ -176,7 +176,7 @@ func (s *service) register(ctx context.Context, d *Document, key string) (string
 			}
 			_, err = tx.TxPipelined(ctx, func(p redis.Pipeliner) error {
 				p.Set(ctx, docKey(d.ID), raw, 0)
-				publishChange(ctx, p, "created", d.ID)
+				publishChange(ctx, p, "created", d.ID, d.State)
 				p.SAdd(ctx, activeKey, d.ID)
 				p.ZAdd(ctx, indexKey, redis.Z{Score: d.Created, Member: d.ID})
 				p.XAdd(ctx, &redis.XAddArgs{Stream: queue, Values: fields{"id": d.ID}})
@@ -249,7 +249,7 @@ func (s *service) cleanup(ctx context.Context) error {
 				}
 				p.ZRem(ctx, indexKey, id)
 				p.ZRem(ctx, expiryKey, id)
-				publishChange(ctx, p, "deleted", id)
+				publishChange(ctx, p, "deleted", id, "")
 				return nil
 			})
 			if err == nil {

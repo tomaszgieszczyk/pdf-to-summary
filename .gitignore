@@ -10,3 +10,4 @@ dist/
 /backend/backend
 .idea/
 .DS_Store
+/frontend/documents/public/pdfjs/

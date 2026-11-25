@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { mountNavigation } from "../../shared/modules";
+import { mountNavigation } from "../../shell/navigation.js";
 import {
   readLanguage,
   saveLanguage,

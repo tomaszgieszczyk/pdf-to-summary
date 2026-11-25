@@ -128,7 +128,11 @@ func (w work) finish(summary string, warn string, reason error) error {
 		}
 		p.XDel(w.ctx, queue, w.job)
 		p.SRem(w.ctx, activeKey, w.id)
-		p.ZAdd(w.ctx, expiryKey, redis.Z{Score: t + w.s.retention.Seconds(), Member: w.id})
+		if summary != "" || d.ExpiresAt == nil {
+			deadline := t + w.s.retention.Seconds()
+			d.ExpiresAt = &deadline
+		}
+		p.ZAdd(w.ctx, expiryKey, redis.Z{Score: *d.ExpiresAt, Member: w.id})
 		return nil
 	})
 }

@@ -3,6 +3,7 @@ export type DocItem = {
   filename: string;
   state: string;
   created_at: string;
+  last_regenerated_at?: number;
   page_count: string | null;
   size_bytes: string;
 };
@@ -16,6 +17,7 @@ export type SummaryVersion = {
 };
 
 export type Document = {
+  parser: string;
   id: string;
   filename: string;
   state: string;
@@ -29,6 +31,7 @@ export type Document = {
   summary_edited_at: number | null;
   pending_summary_language: string | null;
   terminal: boolean;
+  expires_at?: number;
   size_bytes: number;
   page_count: number | null;
   warnings: string[];

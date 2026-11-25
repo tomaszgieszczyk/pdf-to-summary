@@ -1,3 +1,4 @@
+import { WorkspaceReport } from "./WorkspaceReport";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -6,30 +7,16 @@ import {
   subscribeLanguage,
 } from "../../shared/preferences";
 import "./style.css";
-import { mountNavigation } from "../../shared/modules";
 
 import { observe } from "../../shared/events";
 
 function Reports() {
   const language = useSyncExternalStore(subscribeLanguage, readLanguage);
   const [languages, setLanguages] = useState<Record<string, string>>({});
-  const [total, setTotal] = useState<number | null>(null);
+
   const [error, setError] = useState("");
   useEffect(() => {
     const onFailure = (err: unknown) => setError((err as Error).message);
-    const stopCount = observe(
-      async (signal) => {
-        const res = await fetch("/api/documents?limit=1", { signal });
-        if (!res.ok) throw new Error("Could not load the workspace report.");
-        return (await res.json()).total as number;
-      },
-      (value) => {
-        setTotal(value);
-        setError("");
-      },
-      onFailure,
-      (event) => event.type !== "updated",
-    );
     const stopLanguages = observe(
       async (signal) => {
         const res = await fetch("/api/health", { signal });
@@ -41,22 +28,15 @@ function Reports() {
       (event) => event.type === "sync",
     );
     return () => {
-      stopCount();
       stopLanguages();
     };
   }, []);
   return (
     <>
-      <header>
-        <div ref={mountNavigation} />
-      </header>
       <main>
         <h1>Reports</h1>
         {error && <p role="alert">{error}</p>}
-        <section>
-          <h2>Documents in your library</h2>
-          <strong>{total ?? "…"}</strong>
-        </section>
+        <WorkspaceReport />
         <label>
           Default summary language
           <select

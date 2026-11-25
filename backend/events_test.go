@@ -23,33 +23,34 @@ func TestDocumentEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.CloseNow()
-	check := func(kind, id string) {
+	check := func(kind, id, state string) {
 		t.Helper()
 		var event documentEvent
 		if err := wsjson.Read(ctx, conn, &event); err != nil {
 			t.Fatal(err)
 		}
-		if event != (documentEvent{kind, id}) {
+		if event != (documentEvent{kind, id, state}) {
 			t.Fatalf("unexpected event: %+v", event)
 		}
 	}
-	check("sync", "")
+	check("sync", "", "")
 	id := randomID()
-	if _, err = s.register(ctx, &Document{ID: id}, ""); err != nil {
+	if _, err = s.register(ctx, &Document{ID: id, State: "queued"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	check("created", id)
+	check("created", id, "queued")
 	if err = s.update(ctx, id, "", func(d *Document, p redis.Pipeliner) error {
 		past := now() - s.retention.Seconds() - 1
 		d.Finished = &past
+		d.State = "completed"
 		p.ZAdd(ctx, expiryKey, redis.Z{Member: id, Score: past})
 		return nil
 	}); err != nil {
 		t.Fatal(err)
 	}
-	check("updated", id)
+	check("updated", id, "completed")
 	if err = s.cleanup(ctx); err != nil {
 		t.Fatal(err)
 	}
-	check("deleted", id)
+	check("deleted", id, "")
 }

@@ -1,21 +1,20 @@
+import { DocumentDrawer } from "./DocumentDrawer";
+import { lazy, Suspense } from "react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   readLanguage,
   saveLanguage,
   subscribeLanguage,
 } from "../../shared/preferences";
-import { mountNavigation } from "../../shared/modules";
 import {
   AlertCircle,
   ArrowDownToLine,
-  ArrowUpRight,
   BookOpen,
   Check,
   ChevronLeft,
   ChevronRight,
   FileText,
   FolderOpen,
-  Layers,
   LoaderCircle,
   Plus,
   Sparkles,
@@ -29,6 +28,7 @@ import type { Document } from "./types";
 import { useDocumentData } from "./useDocumentData";
 
 import { SummaryEditor, type SummaryDraft } from "./SummaryEditor";
+const PdfPreview = lazy(() => import("./PdfPreview"));
 const stateLabels: Record<string, string> = {
   queued: "Queued",
   preparing: "Preparing",
@@ -54,10 +54,15 @@ function Badge({ state }: { state: string }) {
 }
 
 export default function App() {
+  const [previewPage, setPreviewPage] = useState(1);
   const [refresh, setRefresh] = useState(0);
   const {
     documents,
     total,
+    pageSize,
+    setPageSize,
+    sort,
+    setSort,
     listOffset,
     setListOffset,
     selected,
@@ -104,6 +109,13 @@ export default function App() {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [drafts]);
+
+  function openDocument(id: string) {
+    setPreviewPage(1);
+    setPageOffset(0);
+    setTab("summary");
+    setSelected(id);
+  }
 
   function discardDraft(id: string) {
     setDrafts((current) => {
@@ -285,7 +297,7 @@ export default function App() {
           xhr.send(file);
         });
         retryKeys.current.delete(fingerprint);
-        setSelected(result.id);
+        openDocument(result.id);
         setPageOffset(0);
         setListOffset(0);
         setRefresh((x) => x + 1);
@@ -343,7 +355,7 @@ export default function App() {
       : 0;
 
   return (
-    <div className="app-shell">
+    <div className="documents-panel">
       <input
         ref={input}
         className="visually-hidden"
@@ -355,128 +367,42 @@ export default function App() {
         }
         aria-label="Select PDF files"
       />
-      <aside className="sidebar">
-        <a className="brand" href="/" aria-label="PDF to Summary home">
-          <span className="brand-icon">
-            <Layers size={22} />
-          </span>
-          <span>
-            pdf<span className="brand-light">summary</span>
-            <small>DOCUMENT WORKSPACE</small>
-          </span>
-        </a>
-        <button
-          className="primary new-document"
-          disabled={!!upload}
-          onClick={() => input.current?.click()}
-        >
-          <Plus size={17} /> Add documents
-        </button>
-        <div className="library-title">
-          <span>YOUR LIBRARY</span>
-          <span>{total}</span>
+      <main>
+        <div className="page-heading">
+          <h1>Documents</h1>
         </div>
-        <nav className="document-list" aria-label="Documents">
-          {documents.map((doc) => (
-            <button
-              key={doc.id}
-              className={`document-link ${doc.id === selected ? "selected" : ""}`}
-              onClick={() => {
-                setSelected(doc.id);
-                setPageOffset(0);
-              }}
-            >
-              <FileText size={19} />
-              <span>
-                <strong>{doc.filename}</strong>
-                <small>
-                  {doc.page_count ? `${doc.page_count} pages · ` : ""}
-                  {stateLabels[doc.state] || doc.state}
-                </small>
-              </span>
-              <i className={`document-dot ${doc.state}`} />
-            </button>
-          ))}
-          {!documents.length && (
-            <div className="library-empty">
-              <FolderOpen size={27} />
-              <p>Your documents will appear here.</p>
-            </div>
-          )}
-        </nav>
-        {total > 20 && (
-          <div className="pagination">
-            <button
-              aria-label="Previous documents"
-              disabled={!listOffset}
-              onClick={() => setListOffset((x) => Math.max(0, x - 20))}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span>
-              {listOffset + 1}–{Math.min(listOffset + 20, total)}
-            </span>
-            <button
-              aria-label="Next documents"
-              disabled={listOffset + 20 >= total}
-              onClick={() => setListOffset((x) => x + 20)}
-            >
-              <ChevronRight size={16} />
+        {error && (
+          <div role="alert" className="notice error">
+            <AlertCircle size={18} />
+            <span>{error}</span>
+            <button onClick={() => setError("")} aria-label="Dismiss error">
+              <X size={17} />
             </button>
           </div>
         )}
-        <div className="sidebar-footer">
-          <span className="connection-dot" />
-          <span>
-            Local workspace<small>Powered by Gemini</small>
-          </span>
-          <ArrowUpRight size={15} />
-        </div>
-      </aside>
-      <div className="main-shell">
-        <header className="topbar">
-          <div ref={mountNavigation} />
-          <a href="/api/docs" target="_blank" rel="noreferrer">
-            API docs <ArrowUpRight size={14} />
-          </a>
-        </header>
-        <main>
-          <div className="page-heading">
-            <div className="eyebrow">LESS READING. MORE UNDERSTANDING.</div>
-            <h1>Your documents, made clear.</h1>
-            <p>Explore the important sections. Keep the original context.</p>
+        {health && !health.provider_configured && (
+          <div className="notice warning">
+            <AlertCircle size={18} />
+            <span>
+              Document analysis is not connected yet. Configure the Gemini API
+              key in the service environment to enable it.
+            </span>
           </div>
-          {error && (
-            <div role="alert" className="notice error">
-              <AlertCircle size={18} />
-              <span>{error}</span>
-              <button onClick={() => setError("")} aria-label="Dismiss error">
-                <X size={17} />
-              </button>
-            </div>
-          )}
-          {health && !health.provider_configured && (
-            <div className="notice warning">
-              <AlertCircle size={18} />
-              <span>
-                Document analysis is not connected yet. Configure the Gemini API
-                key in the service environment to enable it.
-              </span>
-            </div>
-          )}
-          <section
-            className={`upload-zone ${dragging ? "dragging" : ""}`}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragging(false);
-              void uploadFiles(event.dataTransfer.files);
-            }}
-          >
+        )}
+        <section
+          className={`upload-zone ${dragging ? "dragging" : ""}`}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            void uploadFiles(event.dataTransfer.files);
+          }}
+        >
+          <div className="upload-heading">
             <div className="upload-icon">
               {upload ? (
                 <LoaderCircle size={24} className="spin" />
@@ -488,12 +414,12 @@ export default function App() {
               <h2>
                 {upload
                   ? `Uploading ${upload.index} of ${upload.total}`
-                  : "Bring your PDFs into focus"}
+                  : "Upload PDFs"}
               </h2>
               <p>
                 {upload
                   ? upload.name
-                  : `Drop your files here, or choose them from your device. Up to ${health ? size(health.max_upload_bytes) : "1 GB"} each.`}
+                  : `Drop files here or choose up to 5 PDFs, ${health ? size(health.max_upload_bytes) : "1 GB"} per file.`}
               </p>
               {upload && (
                 <progress
@@ -502,6 +428,19 @@ export default function App() {
                   aria-label="Upload progress"
                 />
               )}
+            </div>
+            <button
+              className="primary choose-pdf"
+              disabled={!!upload}
+              onClick={() => input.current?.click()}
+            >
+              {upload ? `${upload.percent}%` : "Choose files"}
+              {!upload && <Plus size={16} />}
+            </button>
+          </div>
+          <div className="upload-settings">
+            <div>
+              {" "}
               <SearchableSelect
                 label="PDF parser"
                 value={parser}
@@ -513,9 +452,11 @@ export default function App() {
                 onChange={setParser}
               />
               <p className="muted">
-                Poppler reads text locally. Choose Gemini for scans and images.
-                Summaries use Gemini with either parser.
+                Use Poppler for text and Gemini for scanned pages.
               </p>
+            </div>
+            <div>
+              {" "}
               <SearchableSelect
                 label="Summary language"
                 value={summaryLanguage}
@@ -524,345 +465,528 @@ export default function App() {
                 onChange={saveLanguage}
               />
               <p className="language-hint">
-                Applies to all selected files. Page content stays in its
-                original language.
+                Applies to summaries of all selected files.
               </p>
             </div>
+          </div>
+        </section>
+        <details className="workspace-library" open>
+          <summary>Your library ({total})</summary>
+          <div
+            className="library-sort"
+            role="group"
+            aria-label="Sort documents"
+          >
+            <span>Sort by</span>
+            {Object.entries({
+              created_at: "Created",
+              last_regenerated_at: "Last regenerated",
+              status: "Status",
+            }).map(([field, label]) => (
+              <button
+                key={field}
+                aria-pressed={sort.field === field}
+                aria-label={
+                  sort.field === field
+                    ? `${label}, ${sort.order === "asc" ? "ascending" : "descending"}`
+                    : label
+                }
+                onClick={() => {
+                  setSort({
+                    field,
+                    order:
+                      sort.field === field
+                        ? sort.order === "asc"
+                          ? "desc"
+                          : "asc"
+                        : field === "status"
+                          ? "asc"
+                          : "desc",
+                  });
+                  setListOffset(0);
+                }}
+              >
+                {label}{" "}
+                {sort.field === field && (sort.order === "asc" ? "↑" : "↓")}
+              </button>
+            ))}
+          </div>
+          <nav className="document-list" aria-label="Documents">
+            {documents.map((doc) => (
+              <button
+                key={doc.id}
+                aria-haspopup="dialog"
+                className={`document-link ${doc.id === selected ? "selected" : ""}`}
+                onClick={() => {
+                  openDocument(doc.id);
+                }}
+              >
+                <FileText size={19} />
+                <span>
+                  <strong>{doc.filename}</strong>
+                  <small>
+                    {doc.page_count ? `${doc.page_count} pages · ` : ""}
+                    {stateLabels[doc.state] || doc.state}
+                    {sort.field === "created_at" &&
+                      Number(doc.created_at) > 0 &&
+                      ` · Created ${new Date(Number(doc.created_at) * 1000).toLocaleDateString()}`}
+                    {sort.field === "last_regenerated_at" &&
+                      (doc.last_regenerated_at
+                        ? ` · Regenerated ${new Date(doc.last_regenerated_at * 1000).toLocaleString()}`
+                        : " · Not regenerated")}
+                  </small>
+                </span>
+                <i className={`document-dot ${doc.state}`} />
+              </button>
+            ))}
+            {!documents.length && (
+              <div className="library-empty">
+                <FolderOpen size={27} />
+                <p>Your documents will appear here.</p>
+              </div>
+            )}
+          </nav>
+          <div className="library-pagination">
+            <fieldset className="page-size">
+              <legend className="visually-hidden">Documents per page</legend>
+              <span aria-hidden="true">Per page</span>
+              <div className="page-size-options">
+                {[5, 10, 20, 50].map((size) => (
+                  <label key={size}>
+                    <input
+                      className="visually-hidden"
+                      type="radio"
+                      name="library-page-size"
+                      value={size}
+                      checked={size === pageSize}
+                      onChange={() => {
+                        setPageSize(size);
+                        setListOffset(0);
+                      }}
+                    />
+                    <span>{size}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <span aria-live="polite">
+              {total ? listOffset + 1 : 0}–
+              {Math.min(listOffset + pageSize, total)} of {total}
+            </span>
             <button
               className="secondary"
-              disabled={!!upload}
-              onClick={() => input.current?.click()}
+              aria-label="Previous documents"
+              disabled={listOffset === 0}
+              onClick={() => setListOffset((x) => Math.max(0, x - pageSize))}
             >
-              {upload ? `${upload.percent}%` : "Choose files"}
-              {!upload && <Plus size={16} />}
+              <ChevronLeft size={16} />
             </button>
+            <button
+              className="secondary"
+              aria-label="Next documents"
+              disabled={listOffset + pageSize >= total}
+              onClick={() => setListOffset((x) => x + pageSize)}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </details>
+        {!selected && total === 0 && (
+          <section className="welcome">
+            <div className="welcome-illustration">
+              <div className="paper back" />
+              <div className="paper front">
+                <span />
+                <span />
+                <span />
+                <span />
+                <div>
+                  <Sparkles size={24} />
+                </div>
+              </div>
+            </div>
+            <h2>A little clarity goes a long way.</h2>
+            <p>
+              Add a report, research paper, or scanned document.
+              <br />
+              We’ll help you find what matters, one section at a time.
+            </p>
+            <div className="welcome-features">
+              <span>
+                <Check size={15} /> Text & scanned PDFs
+              </span>
+              <span>
+                <Check size={15} /> Page references
+              </span>
+              <span>
+                <Check size={15} /> Clear coverage
+              </span>
+            </div>
           </section>
-          {!selected && (
-            <section className="welcome">
-              <div className="welcome-illustration">
-                <div className="paper back" />
-                <div className="paper front">
-                  <span />
-                  <span />
-                  <span />
-                  <span />
-                  <div>
-                    <Sparkles size={24} />
-                  </div>
+        )}
+        {selected && (
+          <DocumentDrawer
+            filename={
+              document?.id === selected
+                ? document.filename
+                : documents.find((row) => row.id === selected)?.filename ||
+                  "Document"
+            }
+            onDismiss={() => setSelected(null)}
+          >
+            {document?.id !== selected ? (
+              <p role="status">{error || "Loading document…"}</p>
+            ) : (
+              <section className="reader">
+                <div className="document-metadata">
+                  <span>
+                    {size(document.size_bytes)} ·{" "}
+                    {pageCount ? `${pageCount} pages` : "Counting pages"}
+                  </span>
+                  <Badge state={document.state} />
                 </div>
-              </div>
-              <h2>A little clarity goes a long way.</h2>
-              <p>
-                Add a report, research paper, or scanned document.
-                <br />
-                We’ll help you find what matters, one section at a time.
-              </p>
-              <div className="welcome-features">
-                <span>
-                  <Check size={15} /> Text & scanned PDFs
-                </span>
-                <span>
-                  <Check size={15} /> Page references
-                </span>
-                <span>
-                  <Check size={15} /> Clear coverage
-                </span>
-              </div>
-            </section>
-          )}
-          {selected && !document && (
-            <section className="loading" aria-live="polite">
-              <LoaderCircle className="spin" size={22} /> Loading document…
-            </section>
-          )}
-          {document && (
-            <section className="reader">
-              <div className="reader-heading">
-                <div className="file-icon">
-                  <FileText size={24} />
-                </div>
-                <div className="reader-title">
-                  <h2>{document.filename}</h2>
-                  <p>
-                    {size(document.size_bytes)} <span>·</span>{" "}
-                    {pageCount ? `${pageCount} pages` : "Counting pages"}{" "}
-                    <span>·</span> PDF document
-                  </p>
-                </div>
-                <Badge state={document.state} />
-              </div>
-              {!document.terminal && (
-                <div className="processing-strip" aria-live="polite">
-                  <LoaderCircle size={16} className="spin" />
-                  <div>
-                    <strong>{stateLabels[document.state]}</strong>
-                    <span>
-                      {document.progress.extracted_pages} pages read ·{" "}
-                      {document.progress.summarized_pages} pages summarized
-                    </span>
-                    {document.pending_summary_language && (
+                {!document.terminal && (
+                  <div className="processing-strip" aria-live="polite">
+                    <LoaderCircle size={16} className="spin" />
+                    <div>
+                      <strong>{stateLabels[document.state]}</strong>
                       <span>
-                        Generating in{" "}
-                        {health?.summary_languages?.[
-                          document.pending_summary_language
-                        ] || document.pending_summary_language}
-                        . Your saved summary remains available below.
+                        {document.progress.extracted_pages} pages read ·{" "}
+                        {document.progress.summarized_pages} pages summarized
                       </span>
-                    )}
-                  </div>
-                  <progress
-                    max={100}
-                    value={progress}
-                    aria-label="Document processing progress"
-                  />
-                </div>
-              )}
-              <div
-                className="reader-tabs"
-                role="tablist"
-                aria-label="Document views"
-              >
-                <button
-                  role="tab"
-                  aria-selected={tab === "summary"}
-                  onClick={() => setTab("summary")}
-                >
-                  <Sparkles size={16} /> Summary
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={tab === "pages"}
-                  onClick={() => setTab("pages")}
-                >
-                  <BookOpen size={16} /> Page content
-                </button>
-                <button
-                  className="download"
-                  disabled={!document.summary || !!draft}
-                  onClick={downloadSummary}
-                  aria-label="Download summary"
-                >
-                  <ArrowDownToLine size={16} /> Export
-                </button>
-              </div>
-              <div className="reader-body">
-                {tab === "summary" && document.summary_versions.length > 0 && (
-                  <div className="saved-versions">
-                    <SearchableSelect
-                      label="Saved summary version"
-                      value={document.summary_version_id || ""}
-                      options={document.summary_versions.map((version) => ({
-                        value: version.id,
-                        label: `${health?.summary_languages?.[version.language] || "Language not recorded"} · ${version.model || "Model not recorded (legacy)"} · ${version.created_at ? new Date(version.created_at * 1000).toLocaleString() : "Date not recorded"} · ${version.id}${version.edited_at ? " · Edited" : ""}`,
-                        search: `${version.language} ${languageOptions.find((option) => option.value === version.language)?.search || ""}`,
-                      }))}
-                      disabled={!!savingId}
-                      onChange={(version) =>
-                        setSelectedVersions((current) => ({
-                          ...current,
-                          [document.id]: version,
-                        }))
-                      }
-                    />
-                    <p className="muted">
-                      Choose a saved language and model version. Switching
-                      versions does not generate new content.
-                    </p>
-                  </div>
-                )}
-                {tab === "summary" &&
-                  document.terminal &&
-                  document.progress.extracted_pages > 0 &&
-                  !draft && (
-                    <div className="regeneration-panel">
-                      {regeneration?.id === document.id ? (
-                        <>
-                          <SearchableSelect
-                            label="New summary language"
-                            value={regeneration.language}
-                            options={languageOptions}
-                            disabled={!!savingId}
-                            onChange={(language) =>
-                              setRegeneration({
-                                ...regeneration,
-                                language,
-                                error: undefined,
-                              })
-                            }
-                          />
-                          <p>
-                            Generate a new summary from saved page content. This
-                            uses Gemini and saves a new version. Existing
-                            versions and their edits remain available.
-                          </p>
-                          <div className="editor-actions">
-                            <button
-                              className="secondary"
-                              disabled={!!savingId}
-                              onClick={() => setRegeneration(null)}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              className="primary"
-                              disabled={!!savingId}
-                              onClick={() => void regenerateSummary()}
-                            >
-                              {savingId ? "Starting…" : "Generate new summary"}
-                            </button>
-                          </div>
-                          {regeneration.error && (
-                            <div className="notice error" role="alert">
-                              {regeneration.error}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <button
-                          className="secondary"
-                          disabled={!!savingId}
-                          onClick={() =>
-                            setRegeneration({
-                              id: document.id,
-                              language:
-                                document.summary_language === "unknown"
-                                  ? "en"
-                                  : document.summary_language,
-                            })
-                          }
-                        >
-                          <Sparkles size={15} /> Regenerate summary
-                        </button>
+                      {document.pending_summary_language && (
+                        <span>
+                          Generating in{" "}
+                          {health?.summary_languages?.[
+                            document.pending_summary_language
+                          ] || document.pending_summary_language}
+                          . Your saved summary remains available below.
+                        </span>
                       )}
                     </div>
-                  )}
-                {document.warnings.map((warning, i) => (
-                  <div className="notice warning" key={i}>
-                    <AlertCircle size={18} />
-                    <span>{warning}</span>
-                  </div>
-                ))}
-                {tab === "summary" ? (
-                  document.summary ? (
-                    <SummaryEditor
-                      text={document.summary}
-                      caption={`Summary language: ${health?.summary_languages?.[document.summary_language] || "Language not recorded"} · ${document.summary_model || "Model not recorded (legacy)"}${document.summary_edited_at ? " · Edited and saved" : ""}`}
-                      canEdit={document.terminal}
-                      draft={draft}
-                      saving={!!savingId}
-                      onStart={() =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [draftKey]: {
-                            text: document.summary || "",
-                            revision: document.summary_version_revision,
-                          },
-                        }))
-                      }
-                      onChange={(text) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [draftKey]: { ...draft!, text, error: undefined },
-                        }))
-                      }
-                      onCancel={() => discardDraft(draftKey)}
-                      onSave={() => void saveSummary(document.id)}
+                    <progress
+                      max={100}
+                      value={progress}
+                      aria-label="Document processing progress"
                     />
-                  ) : (
-                    <div className="pending-summary">
-                      <Sparkles size={29} />
-                      <h3>
-                        {document.state === "failed"
-                          ? "A summary could not be completed."
-                          : "The big picture is on its way."}
-                      </h3>
-                      <p>
-                        {document.state === "failed"
-                          ? "Review the details below. Any successfully read pages remain available in Page content."
-                          : "Your document is being read in small sections. You can explore available pages while the summary is prepared."}
-                      </p>
-                    </div>
-                  )
-                ) : (
-                  <div>
-                    <div className="page-navigation">
-                      <span>
-                        Pages {pageCount ? pageOffset + 1 : 0}–
-                        {Math.min(pageOffset + 5, pageCount)} of{" "}
-                        {pageCount || "…"}
-                      </span>
-                      <div>
-                        <button
-                          aria-label="Previous pages"
-                          disabled={!pageOffset}
-                          onClick={() =>
-                            setPageOffset((x) => Math.max(0, x - 5))
-                          }
-                        >
-                          <ChevronLeft size={18} />
-                        </button>
-                        <button
-                          aria-label="Next pages"
-                          disabled={pageOffset + 5 >= pageCount}
-                          onClick={() => setPageOffset((x) => x + 5)}
-                        >
-                          <ChevronRight size={18} />
-                        </button>
-                      </div>
-                    </div>
-                    {pages.map((page) => (
-                      <article className="page-content" key={page.page}>
-                        <div className="page-label">
-                          PAGE {String(page.page).padStart(2, "0")}
-                          <span>
-                            {page.extraction_state === "completed"
-                              ? "Extracted"
-                              : page.extraction_state}
-                          </span>
-                        </div>
-                        {page.markdown ? (
-                          <Markdown text={page.markdown} />
-                        ) : (
-                          <p className="muted">
-                            {page.blank
-                              ? "This page is blank."
-                              : page.extraction_state === "failed" ||
-                                  page.extraction_state === "unavailable"
-                                ? "Content could not be extracted for this page."
-                                : page.extraction_state === "completed"
-                                  ? "No extractable text layer. Choose Gemini for scanned pages."
-                                  : "This page is waiting to be processed."}
-                          </p>
-                        )}
-                      </article>
-                    ))}
                   </div>
                 )}
-                {!!document.errors.length && (
-                  <details className="error-details">
-                    <summary>
-                      Processing details ({document.errors.length})
-                    </summary>
-                    {document.errors.map((item) => (
-                      <p key={item.task_id}>
-                        <strong>{item.stage}</strong> · {item.message}{" "}
-                        <small>{item.attempts} attempt(s)</small>
+                <div
+                  className="reader-tabs"
+                  role="tablist"
+                  aria-label="Document views"
+                >
+                  <button
+                    role="tab"
+                    aria-selected={tab === "summary"}
+                    onClick={() => setTab("summary")}
+                  >
+                    <Sparkles size={16} /> Summary
+                  </button>
+                  <button
+                    role="tab"
+                    aria-selected={tab === "pages"}
+                    onClick={() => setTab("pages")}
+                  >
+                    <BookOpen size={16} /> Page content
+                  </button>
+                  <button
+                    role="tab"
+                    aria-selected={tab === "pdf"}
+                    onClick={() => setTab("pdf")}
+                  >
+                    <FileText size={16} /> Original PDF
+                  </button>
+                  <button
+                    role="tab"
+                    aria-selected={tab === "processing"}
+                    onClick={() => setTab("processing")}
+                  >
+                    Processing
+                  </button>
+                  <button
+                    className="download"
+                    disabled={!document.summary || !!draft}
+                    onClick={downloadSummary}
+                    aria-label="Download summary"
+                  >
+                    <ArrowDownToLine size={16} /> Export
+                  </button>
+                </div>
+                <div className="reader-body">
+                  {tab === "summary" &&
+                    document.summary_versions.length > 0 && (
+                      <div className="saved-versions">
+                        <SearchableSelect
+                          label="Saved summary version"
+                          value={document.summary_version_id || ""}
+                          options={document.summary_versions.map((version) => ({
+                            value: version.id,
+                            label: `${health?.summary_languages?.[version.language] || "Language not recorded"} · ${version.model || "Model not recorded (legacy)"} · ${version.created_at ? new Date(version.created_at * 1000).toLocaleString() : "Date not recorded"} · ${version.id}${version.edited_at ? " · Edited" : ""}`,
+                            search: `${version.language} ${languageOptions.find((option) => option.value === version.language)?.search || ""}`,
+                          }))}
+                          disabled={!!savingId}
+                          onChange={(version) =>
+                            setSelectedVersions((current) => ({
+                              ...current,
+                              [document.id]: version,
+                            }))
+                          }
+                        />
+                        <p className="muted">
+                          Choose a saved language and model version. Switching
+                          versions does not generate new content.
+                        </p>
+                      </div>
+                    )}
+                  {tab === "summary" &&
+                    document.terminal &&
+                    document.progress.extracted_pages > 0 &&
+                    !draft && (
+                      <div className="regeneration-panel">
+                        {regeneration?.id === document.id ? (
+                          <>
+                            <SearchableSelect
+                              label="New summary language"
+                              value={regeneration.language}
+                              options={languageOptions}
+                              disabled={!!savingId}
+                              onChange={(language) =>
+                                setRegeneration({
+                                  ...regeneration,
+                                  language,
+                                  error: undefined,
+                                })
+                              }
+                            />
+                            <p>
+                              Generate a new summary from saved page content.
+                              This uses Gemini and saves a new version. Existing
+                              versions and their edits remain available.
+                            </p>
+                            <div className="editor-actions">
+                              <button
+                                className="secondary"
+                                disabled={!!savingId}
+                                onClick={() => setRegeneration(null)}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                className="primary"
+                                disabled={!!savingId}
+                                onClick={() => void regenerateSummary()}
+                              >
+                                {savingId
+                                  ? "Starting…"
+                                  : "Generate new summary"}
+                              </button>
+                            </div>
+                            {regeneration.error && (
+                              <div className="notice error" role="alert">
+                                {regeneration.error}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <button
+                            className="secondary"
+                            disabled={!!savingId}
+                            onClick={() =>
+                              setRegeneration({
+                                id: document.id,
+                                language:
+                                  document.summary_language === "unknown"
+                                    ? "en"
+                                    : document.summary_language,
+                              })
+                            }
+                          >
+                            <Sparkles size={15} /> Regenerate summary
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  {document.warnings.map((warning, i) => (
+                    <div className="notice warning" key={i}>
+                      <AlertCircle size={18} />
+                      <span>{warning}</span>
+                    </div>
+                  ))}
+                  {tab === "pdf" ? (
+                    <Suspense fallback={<p>Loading PDF…</p>}>
+                      <PdfPreview
+                        key={document.id}
+                        id={document.id}
+                        initialPage={previewPage}
+                      />
+                    </Suspense>
+                  ) : tab === "processing" ? (
+                    <section aria-label="Processing details">
+                      <h3>Processing details</h3>
+                      <p role="status">
+                        {stateLabels[document.state] || document.state}
                       </p>
-                    ))}
-                  </details>
-                )}
-              </div>
-              <footer className="reader-footer">
-                <Sparkles size={13} /> AI-generated content. Check the source
-                pages for important decisions.
-              </footer>
-            </section>
-          )}
-          <footer className="page-footer">
-            PDF to Summary <span>Built for the details that matter.</span>
-          </footer>
-        </main>
-      </div>
+                      <dl className="processing-counts">
+                        <div>
+                          <dt>Available until</dt>
+                          <dd>
+                            {document.expires_at
+                              ? new Date(
+                                  document.expires_at * 1000,
+                                ).toLocaleString()
+                              : "After processing finishes"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Pages prepared</dt>
+                          <dd>{document.progress.prepared_pages}</dd>
+                        </div>
+                        <div>
+                          <dt>Pages read</dt>
+                          <dd>{document.progress.extracted_pages}</dd>
+                        </div>
+                        <div>
+                          <dt>Pages summarized</dt>
+                          <dd>{document.progress.summarized_pages}</dd>
+                        </div>
+                      </dl>
+                    </section>
+                  ) : tab === "summary" ? (
+                    document.summary ? (
+                      <SummaryEditor
+                        text={document.summary}
+                        caption={`Summary language: ${health?.summary_languages?.[document.summary_language] || "Language not recorded"} · ${document.summary_model || "Model not recorded (legacy)"}${document.summary_edited_at ? " · Edited and saved" : ""}`}
+                        canEdit={document.terminal}
+                        draft={draft}
+                        saving={!!savingId}
+                        onStart={() =>
+                          setDrafts((current) => ({
+                            ...current,
+                            [draftKey]: {
+                              text: document.summary || "",
+                              revision: document.summary_version_revision,
+                            },
+                          }))
+                        }
+                        onChange={(text) =>
+                          setDrafts((current) => ({
+                            ...current,
+                            [draftKey]: { ...draft!, text, error: undefined },
+                          }))
+                        }
+                        onCancel={() => discardDraft(draftKey)}
+                        onSave={() => void saveSummary(document.id)}
+                      />
+                    ) : (
+                      <div className="pending-summary">
+                        <Sparkles size={29} />
+                        <h3>
+                          {document.state === "failed"
+                            ? "A summary could not be completed."
+                            : "The big picture is on its way."}
+                        </h3>
+                        <p>
+                          {document.state === "failed"
+                            ? "Open Processing for details. Any successfully read pages remain available in Page content."
+                            : "Your document is being read in small sections. You can explore available pages while the summary is prepared."}
+                        </p>
+                      </div>
+                    )
+                  ) : (
+                    <div>
+                      <div className="page-navigation">
+                        <span>
+                          Pages {pageCount ? pageOffset + 1 : 0}–
+                          {Math.min(pageOffset + 5, pageCount)} of{" "}
+                          {pageCount || "…"}
+                        </span>
+                        <div>
+                          <button
+                            aria-label="Previous pages"
+                            disabled={!pageOffset}
+                            onClick={() =>
+                              setPageOffset((x) => Math.max(0, x - 5))
+                            }
+                          >
+                            <ChevronLeft size={18} />
+                          </button>
+                          <button
+                            aria-label="Next pages"
+                            disabled={pageOffset + 5 >= pageCount}
+                            onClick={() => setPageOffset((x) => x + 5)}
+                          >
+                            <ChevronRight size={18} />
+                          </button>
+                        </div>
+                      </div>
+                      {pages.map((page) => (
+                        <article className="page-content" key={page.page}>
+                          <div className="page-label">
+                            PAGE {String(page.page).padStart(2, "0")}
+                            <span>
+                              {page.extraction_state === "completed"
+                                ? "Extracted"
+                                : page.extraction_state}
+                            </span>
+                          </div>
+                          {page.markdown ? (
+                            document.parser === "gemini" ? (
+                              <Markdown text={page.markdown} />
+                            ) : (
+                              <pre className="extracted-text" dir="auto">
+                                {page.markdown}
+                              </pre>
+                            )
+                          ) : (
+                            <p className="muted">
+                              {page.blank
+                                ? "This page is blank."
+                                : page.extraction_state === "failed" ||
+                                    page.extraction_state === "unavailable"
+                                  ? "Content could not be extracted for this page."
+                                  : page.extraction_state === "completed"
+                                    ? "No extractable text layer. Choose Gemini for scanned pages."
+                                    : "This page is waiting to be processed."}
+                            </p>
+                          )}
+                          <button
+                            className="secondary"
+                            onClick={() => {
+                              setPreviewPage(page.page);
+                              setTab("pdf");
+                            }}
+                          >
+                            View original page {page.page}
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                  {tab === "processing" && !!document.errors.length && (
+                    <details className="error-details">
+                      <summary>Errors ({document.errors.length})</summary>
+                      {document.errors.map((item) => (
+                        <p key={item.task_id}>
+                          <strong>{item.stage}</strong> · {item.message}{" "}
+                          <small>{item.attempts} attempt(s)</small>
+                        </p>
+                      ))}
+                    </details>
+                  )}
+                </div>
+                <footer className="reader-footer">
+                  <Sparkles size={13} /> AI-generated content. Check the source
+                  pages for important decisions.
+                </footer>
+              </section>
+            )}
+          </DocumentDrawer>
+        )}
+        <footer className="page-footer">
+          PDF to Summary <span>Built for the details that matter.</span>
+        </footer>
+      </main>
     </div>
   );
 }

@@ -16,7 +16,7 @@ On macOS or Linux, use `cp .env.example .env`. Set `GEMINI_API_KEY` in `.env`. T
 docker compose up -d --build
 ```
 
-Open [the document workspace](http://localhost:8080). Choose a PDF parser and summary language, then select or drop one or more files. Open a document to follow its progress, inspect individual pages, edit a saved version, regenerate in another language or export Markdown.
+Open [the document workspace](http://localhost:8080). Choose a PDF parser and summary language, then select or drop one or more files. Select a document from **Your library** to open its detail drawer. Choose **Original PDF**, **Summary**, **Page content** or **Processing**. Close the drawer with Escape or the Close button to return to the same library page. The library shows the current range and supports 5, 10, 20 or 50 documents per page. The **Page content** view preserves line breaks and columns for locally extracted text. Select **View original page** to compare it with the source. Open a document to follow its progress, inspect individual pages, edit a saved version, regenerate in another language or export Markdown.
 
 - **Poppler** extracts embedded text locally. Only extracted text and summary material are sent to Gemini. Use this mode for PDFs with a text layer.
 - **Gemini** receives a one-page PDF at a time and can transcribe scanned pages and images. Extracted pages stay in the source language.
@@ -28,7 +28,7 @@ docker compose logs -f api worker
 docker compose down
 ```
 
-Compose binds the UI, API and Redis to loopback. The service has no authentication. Named volumes preserve PDFs, results and revisions across restarts. Terminal documents expire after 24 hours by default. Configure the model, upload limit, retention, capacity and shared Gemini request rate in `.env`. After changing settings, run `docker compose up -d`. Nginx also enforces a 1 GiB upload limit.
+Compose binds the UI, API and Redis to loopback. The service has no authentication. Named volumes preserve PDFs, results and revisions across restarts. Completed processing starts a seven-day retention period by default. Generating a new saved summary restarts it. A failed regeneration preserves the previous deadline. Configure the model, upload limit, retention, capacity and shared Gemini request rate in `.env`. After changing settings, run `docker compose up -d`. Nginx also enforces a 1 GiB upload limit.
 
 ## Development
 
@@ -63,11 +63,11 @@ Open [Documents](http://localhost:8080/documents/) or [Reports](http://localhost
 | `/reports/` | Reports on port 5175 |
 | `/api/` | Go API on port 8000 |
 
-The root opens Documents. Use the **Modules** menu to switch applications. Reports shows the current library size and the default summary language. Changing the language in either application updates the other, including an already-open tab on the same origin. The preference is stored under `pdf-to-summary.preferences.summary-language`. PDFs, summaries and provider credentials stay on the backend. Opening the application ports directly creates separate browser storage.
+The root opens Documents. The persistent left sidebar switches the central panel. Each module loads in its own same-origin iframe on first use and stays mounted when switching, preserving drafts and selections. The address bar and browser history track the active module. Reports shows processing states, page extraction coverage, uploaded PDF sizes and a paginated expiry schedule. Sort the schedule by expiry, creation, last regeneration or status. Select the same column again to reverse the order. The library offers the same creation, regeneration and status ordering across all pages. Expiry comes from the Redis retention index. Documents still being processed receive a deadline when processing finishes. Changing the language in either application updates the other, including an already-open tab on the same origin. The preference is stored under `pdf-to-summary.preferences.summary-language`. PDFs, summaries and provider credentials stay on the backend. Opening the application ports directly creates separate browser storage.
 
-The shared registry in `frontend/shared/modules.ts` controls navigation. A module with a path is accessible from the menu. A null path displays **Unavailable in demo**. Access Control, AI Chat and Configuration are placeholders. This registry describes UI availability. Future protected operations also require authorization in the API.
+The shared registry in `frontend/shell/navigation.js` controls navigation. A module with a path is accessible from the menu. A null path displays **Unavailable in demo**. Access Control, AI Chat and Configuration are placeholders. This registry describes UI availability. Future protected operations also require authorization in the API.
 
-To add a working module, create its Vite application under `frontend/`, assign its URL base and service port, add the Compose service and gateway location, then set its path in the registry. The common Dockerfile accepts `APP` and `APP_PORT`. For an existing module, rebuild and deploy it independently, for example with `docker compose up -d --build --no-deps reports`. Rebuild both applications after editing shared navigation or preferences.
+To add a working module, create its Vite application under `frontend/`, assign its URL base and service port, add the Compose service and gateway location, then set its path in the registry. The common Dockerfile accepts `APP` and `APP_PORT`. For an existing module, rebuild and deploy it independently, for example with `docker compose up -d --build --no-deps reports`. The gateway serves shell navigation directly. Rebuild both applications after editing shared preferences. For a new route, serve the shell at its exact public path and proxy module assets and index.html to its upstream.
 
 ## API example
 
@@ -79,7 +79,7 @@ On Windows use `curl.exe`. The response contains a document ID and a status URL.
 
 ## Processing and persistence
 
-Each workspace tab connects to `/api/events` over WebSocket. Redis publishes document creation, progress, edits and expiry in the same transaction as the corresponding state change. Messages carry the event type and document ID. The UI fetches current data on entry, on relevant changes and after reconnecting. A quiet workspace makes no periodic document requests.
+Each workspace tab connects to `/api/events` over WebSocket. Redis publishes document creation, progress, edits and expiry in the same transaction as the corresponding state change. Create and update messages carry the document ID and processing state, including `completed`, `partial` and `failed`. The UI fetches current data on entry, on relevant changes and after reconnecting. A quiet workspace makes no periodic document requests.
 
 The API streams the input to disk, then registers the document and its Redis Streams job in one transaction. Workers acquire a renewable document lease. Redis stores extracted pages, per-generation summaries and reduction checkpoints. A replacement worker can resume from the last published checkpoint. Provider calls interrupted before a checkpoint is saved may be repeated. Multiple workers can process different documents concurrently.
 

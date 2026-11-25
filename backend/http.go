@@ -48,6 +48,7 @@ var idPattern = regexp.MustCompile("^[0-9a-f]{32}$")
 func (s *service) routes() http.Handler {
 	m := http.NewServeMux()
 	m.HandleFunc("GET /events", s.events)
+	m.HandleFunc("GET /reports", route(200, s.reports))
 	m.HandleFunc("GET /health", route(200, func(_ http.ResponseWriter, r *http.Request) (any, error) {
 		return fields{"status": "ok", "model": s.model, "provider_configured": s.key != "", "max_upload_bytes": s.maxBytes, "summary_languages": languages}, nil
 	}))
@@ -68,6 +69,32 @@ func (s *service) routes() http.Handler {
 			return fields{"status": "ok"}, nil
 		}))
 	}
+	m.HandleFunc("GET /documents/{id}/source", func(w http.ResponseWriter, r *http.Request) {
+		d, err := s.fromRequest(r)
+		if err != nil {
+			if errors.Is(err, missing) {
+				http.NotFound(w, r)
+			} else {
+				http.Error(w, "Storage temporarily unavailable.", 503)
+			}
+			return
+		}
+		file, err := os.Open(filepath.Join(s.root, d.ID, "source.pdf"))
+		if err != nil {
+			if os.IsNotExist(err) {
+				http.NotFound(w, r)
+			} else {
+				http.Error(w, "Cannot read PDF.", 503)
+			}
+			return
+		}
+		defer file.Close()
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": d.Filename}))
+		http.ServeContent(w, r, d.Filename, time.Time{}, file)
+	})
 	m.HandleFunc("POST /documents", route(202, s.upload))
 	m.HandleFunc("GET /documents", route(200, s.list))
 	m.HandleFunc("GET /documents/{id}", route(200, func(_ http.ResponseWriter, r *http.Request) (any, error) {
@@ -130,25 +157,23 @@ func (s *service) list(_ http.ResponseWriter, r *http.Request) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx := r.Context()
-	rows, err := s.db.Eval(ctx, listVisible, []string{indexKey, expiryKey}, o, l, prefix).Slice()
+	order, err := parseOrdering(r, "created_at", "desc")
 	if err != nil {
 		return nil, err
 	}
-	total := rows[0]
-	items := []fields{}
-	for _, raw := range rows[1:] {
-		var d Document
-		if err := json.Unmarshal([]byte(raw.(string)), &d); err != nil {
-			return nil, err
-		}
-		var count any
-		if d.Count > 0 {
-			count = strconv.Itoa(d.Count)
-		}
-		items = append(items, fields{"id": d.ID, "filename": d.Filename, "state": d.State, "created_at": fmt.Sprint(d.Created), "size_bytes": fmt.Sprint(d.Size), "page_count": count})
+	report, err := s.snapshot(r.Context())
+	if err != nil {
+		return nil, err
 	}
-	return fields{"items": items, "total": total}, nil
+	items := []fields{}
+	for _, row := range order.page(report.Rows, o, l) {
+		var count any
+		if row.Pages > 0 {
+			count = strconv.Itoa(row.Pages)
+		}
+		items = append(items, fields{"id": row.ID, "filename": row.Filename, "state": row.State, "created_at": fmt.Sprint(row.Created), "last_regenerated_at": row.Regenerated, "size_bytes": fmt.Sprint(row.Bytes), "page_count": count})
+	}
+	return fields{"items": items, "total": report.Total}, nil
 }
 func (s *service) upload(w http.ResponseWriter, r *http.Request) (any, error) {
 	q := r.URL.Query()

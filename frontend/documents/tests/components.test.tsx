@@ -107,6 +107,9 @@ test("a rejected save keeps the draft and displays the conflict; summary view do
   );
   vi.stubGlobal("fetch", fetchMock);
   render(<App />);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  fireEvent.click(await screen.findByRole("button", { name: /example.pdf/ }));
+  await screen.findByRole("dialog", { name: "example.pdf" });
   fireEvent.click(await screen.findByRole("button", { name: "Edit summary" }));
   fireEvent.change(screen.getByLabelText("Edit summary (Markdown)"), {
     target: { value: "My unsaved work" },

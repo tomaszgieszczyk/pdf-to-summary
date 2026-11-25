@@ -49,6 +49,7 @@ type Document struct {
 	Parser            string            `json:"parser"`
 	State             string            `json:"state"`
 	Created           float64           `json:"created_at"`
+	ExpiresAt         *float64          `json:"expires_at,omitempty"`
 	Finished          *float64          `json:"finished_at"`
 	Size              int64             `json:"size_bytes"`
 	Count             int               `json:"page_count"`
@@ -107,6 +108,9 @@ func (d *Document) view(selected string) (fields, error) {
 	delete(out, "upload_summary_language")
 	out["model"] = d.Model
 	out["terminal"] = d.terminal()
+	if !d.terminal() {
+		delete(out, "expires_at")
+	}
 	out["summary"] = nil
 	out["summary_model"] = nil
 	out["summary_version_id"] = nil

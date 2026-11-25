@@ -1,6 +1,7 @@
 export type WorkspaceEvent = {
   type: "sync" | "created" | "updated" | "deleted";
   id?: string;
+  state?: string;
 };
 type Listener = (event: WorkspaceEvent) => void;
 const listeners = new Set<Listener>();

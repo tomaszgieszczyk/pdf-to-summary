@@ -53,7 +53,7 @@ func run() error {
 	if err = os.MkdirAll(root, 0700); err != nil {
 		return err
 	}
-	s := service{db: db, root: root, model: env("GEMINI_MODEL", "gemini-3.1-flash-lite"), key: os.Getenv("GEMINI_API_KEY"), retention: time.Duration(integer("RETENTION_SECONDS", 86400)) * time.Second, maxBytes: int64(integer("MAX_UPLOAD_BYTES", 1<<30)), maxActive: integer("MAX_ACTIVE_DOCUMENTS", 20)}
+	s := service{db: db, root: root, model: env("GEMINI_MODEL", "gemini-3.1-flash-lite"), key: os.Getenv("GEMINI_API_KEY"), retention: time.Duration(integer("RETENTION_SECONDS", 604800)) * time.Second, maxBytes: int64(integer("MAX_UPLOAD_BYTES", 1<<30)), maxActive: integer("MAX_ACTIVE_DOCUMENTS", 20)}
 	s.uploads = make(chan struct{}, s.maxActive)
 	reserve, err := strconv.ParseUint(env("MIN_FREE_DISK_BYTES", "268435456"), 10, 64)
 	if err != nil {

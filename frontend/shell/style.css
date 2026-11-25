@@ -1,0 +1,112 @@
+:root {
+  font:
+    15px/1.45 "Segoe UI",
+    system-ui,
+    sans-serif;
+  color: #253c31;
+  background: #f7f8f5;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  height: 100dvh;
+  margin: 0;
+  display: grid;
+  grid-template-columns: clamp(172px, 17vw, 252px) minmax(0, 1fr);
+}
+aside {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-right: 1px solid #dce4dc;
+  padding: 26px 14px;
+  overflow: auto;
+}
+.brand {
+  font-size: 25px;
+  font-weight: 750;
+  letter-spacing: -1.4px;
+  margin: 0 12px 36px;
+}
+.brand span {
+  font-weight: 450;
+}
+nav {
+  display: grid;
+  gap: 4px;
+}
+nav a,
+nav > span,
+.docs {
+  display: block;
+  padding: 12px;
+  border-radius: 7px;
+  text-decoration: none;
+  color: #315948;
+  font-weight: 600;
+}
+nav a:hover,
+nav a:focus-visible {
+  background: #f1f5ef;
+}
+nav a[aria-current] {
+  background: #e4eee6;
+  color: #204e39;
+  box-shadow: inset 3px 0 #37684e;
+}
+nav > span {
+  color: #657269;
+}
+small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+}
+.docs {
+  margin-top: auto;
+  font-size: 13px;
+}
+main {
+  min-width: 0;
+  min-height: 0;
+}
+iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+iframe[hidden] {
+  display: none;
+}
+@media (max-width: 650px) {
+  body {
+    grid-template-columns: 116px minmax(0, 1fr);
+  }
+  aside {
+    padding: 18px 5px;
+  }
+  .brand {
+    font-size: 19px;
+    margin: 0 5px 22px;
+  }
+  nav a,
+  nav > span,
+  .docs {
+    padding: 10px 7px;
+    font-size: 13px;
+  }
+  small {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 650px) {
+  iframe.document-open:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    background: white;
+  }
+}

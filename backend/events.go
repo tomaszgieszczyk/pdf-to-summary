@@ -13,13 +13,14 @@ import (
 
 const documentEvents = prefix + "events"
 
-func publishChange(ctx context.Context, p redis.Pipeliner, kind, id string) {
-	p.Publish(ctx, documentEvents, kind+":"+id)
+func publishChange(ctx context.Context, p redis.Pipeliner, kind, id, state string) {
+	p.Publish(ctx, documentEvents, kind+":"+id+":"+state)
 }
 
 type documentEvent struct {
-	Type string `json:"type"`
-	ID   string `json:"id,omitempty"`
+	Type  string `json:"type"`
+	ID    string `json:"id,omitempty"`
+	State string `json:"state,omitempty"`
 }
 
 func (s *service) events(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +68,8 @@ func (s *service) events(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				continue
 			}
-			event = documentEvent{kind, id}
+			id, state, _ := strings.Cut(id, ":")
+			event = documentEvent{Type: kind, ID: id, State: state}
 		default:
 			continue
 		}

@@ -7,12 +7,16 @@ import type { DocItem, Document, Page, Health } from "./types";
 export function useDocumentData(refresh: number) {
   const [documents, setDocuments] = useState<DocItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [sort, setSort] = useState({ field: "created_at", order: "desc" });
+  const [pageSize, setPageSize] = useState(10);
   const [listOffset, setListOffset] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [document, setDocument] = useState<Document | null>(null);
   const [pages, setPages] = useState<Page[]>([]);
   const [pageOffset, setPageOffset] = useState(0);
-  const [tab, setTab] = useState<"summary" | "pages">("summary");
+  const [tab, setTab] = useState<"summary" | "pages" | "pdf" | "processing">(
+    "summary",
+  );
   const [health, setHealth] = useState<Health | null>(null);
   const [error, setError] = useState("");
   const [selectedVersions, setSelectedVersions] = useState<
@@ -35,18 +39,23 @@ export function useDocumentData(refresh: number) {
       observe(
         (signal) =>
           api<{ items: DocItem[]; total: number }>(
-            `/documents?offset=${listOffset}&limit=20`,
+            `/documents?offset=${listOffset}&limit=${pageSize}&sort=${sort.field}&order=${sort.order}`,
             signal,
           ),
         (list) => {
+          if (listOffset > 0 && listOffset >= list.total) {
+            setListOffset(
+              Math.max(0, Math.floor((list.total - 1) / pageSize) * pageSize),
+            );
+            return;
+          }
           setDocuments(list.items);
           setTotal(list.total);
-          setSelected((current) => current || list.items[0]?.id || null);
         },
         (error) => setError((error as Error).message),
         () => true,
       ),
-    [refresh, listOffset],
+    [refresh, listOffset, pageSize, sort],
   );
 
   useEffect(() => {
@@ -92,6 +101,10 @@ export function useDocumentData(refresh: number) {
   return {
     documents,
     total,
+    pageSize,
+    setPageSize,
+    sort,
+    setSort,
     listOffset,
     setListOffset,
     selected,
